@@ -60,6 +60,24 @@ const ai = new GoogleGenAI({
   }
 });
 
+function getGeminiErrorMessage(error: any): string {
+  const rawMessage = error?.message || String(error || "");
+  const normalized = rawMessage.toLowerCase();
+  if (!process.env.GEMINI_API_KEY) {
+    return "GEMINI_API_KEY is missing on the server. Add it in Vercel Project Settings > Environment Variables, then redeploy.";
+  }
+  if (
+    normalized.includes("unregistered callers") ||
+    normalized.includes("permission_denied") ||
+    normalized.includes("api key") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("403")
+  ) {
+    return "Gemini API authentication failed. Check GEMINI_API_KEY value, API restrictions, and allowed Gemini/Generative Language API access.";
+  }
+  return `Gemini request failed: ${rawMessage}`;
+}
+
 // Reusable fallback generator similar to server.ts
 async function generateContentWithFallback(requestOptions: { contents: any; config?: any }) {
   const modelsToTry = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
@@ -259,6 +277,12 @@ export default async function handler(req: any, res: any) {
     // --- Voice-to-Task ---
     if (path === "/voice-to-task" && method === "POST") {
       try {
+        if (!process.env.GEMINI_API_KEY) {
+          return res.status(500).json({
+            error: "GEMINI_API_KEY is missing on the server. Add it in Vercel env vars and redeploy."
+          });
+        }
+
         const { audioData, mimeType, textInput } = req.body || {};
         const todayStr = new Date().toISOString().split('T')[0];
         const systemInstruction = `You are an expert voice-to-task parser for legal advocates. Today's date is ${todayStr}. Extract structured legal task details.`;
@@ -279,12 +303,9 @@ export default async function handler(req: any, res: any) {
           const response = await generateContentWithFallback({ contents, config: { systemInstruction, responseMimeType: 'application/json', responseSchema: { type: Type.OBJECT, properties: { case_name: { type: Type.STRING }, client_name: { type: Type.STRING }, court_name: { type: Type.STRING }, due_date: { type: Type.STRING }, description: { type: Type.STRING }, urgency: { type: Type.STRING }, transcript: { type: Type.STRING } }, required: ['case_name','due_date','description','urgency'] } } });
           parsedData = JSON.parse(response.text || '{}');
         } catch (aiError: any) {
-          console.warn('Gemini error, fallback parser used:', aiError?.message || aiError);
-          const textToParse = textInput || 'File court petition as requested';
-          const isUrgent = /urgent|bail|today|immediately|high/i.test(textToParse);
-          const tomorrowObj = new Date(); tomorrowObj.setDate(tomorrowObj.getDate()+1);
-          const tomorrowStr = tomorrowObj.toISOString().split('T')[0];
-          parsedData = { case_name: textToParse.split(' ').slice(0,4).join(' ') || 'New Advocate Matter', client_name: 'Client', court_name: 'District Court', due_date: /tomorrow/i.test(textToParse) ? tomorrowStr : todayStr, description: textToParse, urgency: isUrgent ? 'HIGH' : 'MEDIUM', transcript: textToParse };
+          const message = getGeminiErrorMessage(aiError);
+          console.error('Gemini error /api/voice-to-task:', aiError);
+          return res.status(502).json({ error: message });
         }
 
         return res.json({ success: true, extracted: { case_name: parsedData.case_name || 'New Advocate Case', client_name: parsedData.client_name || 'Client', court_name: parsedData.court_name || 'District Court', due_date: parsedData.due_date || todayStr, description: parsedData.description || textInput || 'Extracted Legal Task', urgency: parsedData.urgency || 'MEDIUM', transcript: parsedData.transcript || textInput || 'Voice note transcribed' } });
@@ -297,6 +318,12 @@ export default async function handler(req: any, res: any) {
     // --- Draft Document ---
     if (path === "/draft-document" && method === "POST") {
       try {
+        if (!process.env.GEMINI_API_KEY) {
+          return res.status(500).json({
+            error: "GEMINI_API_KEY is missing on the server. Add it in Vercel env vars and redeploy."
+          });
+        }
+
         const { prompt, document_type, case_title, client_name, court_name } = req.body || {};
         if (!prompt) return res.status(400).json({ error: 'Prompt description is required.' });
         const systemInstruction = `You are an elite legal drafting assistant for independent court advocates.`;
@@ -306,7 +333,7 @@ export default async function handler(req: any, res: any) {
         return res.json({ success: true, document: { document_type: document_type || 'Legal Draft', title: `${document_type || 'Draft'} - ${client_name || 'Case'}`, content: generatedContent } });
       } catch (error: any) {
         console.error('Error /api/draft-document:', error);
-        return res.status(500).json({ error: error.message || 'Failed to draft legal document' });
+        return res.status(502).json({ error: getGeminiErrorMessage(error) });
       }
     }
 
