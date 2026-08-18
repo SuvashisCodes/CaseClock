@@ -1,0 +1,6 @@
+{
+  "name": "CaseClock",
+  "description": "Minimalist advocate practice management, court calendar, voice-to-task deadline extractor, and AI legal drafting assistant.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
