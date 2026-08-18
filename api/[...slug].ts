@@ -90,8 +90,10 @@ export default async function handler(req: any, res: any) {
   try {
     const url = req.url || ""; // e.g. /api/cases or /api/deadlines
     const method = (req.method || "GET").toUpperCase();
-    // Normalize path after /api
-    const path = url.replace(/^\/api/, "");
+    // Normalize path after /api and remove query/trailing slashes
+    const pathOnly = String(url).split("?")[0];
+    const rawPath = pathOnly.replace(/^\/api/, "");
+    const path = rawPath.length > 1 ? rawPath.replace(/\/+$/, "") : rawPath;
 
     // --- Cases ---
     if (path === "/cases" && method === "GET") {
