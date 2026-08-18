@@ -94,11 +94,11 @@ export default async function handler(req: any, res: any) {
     const path = url.replace(/^\/api/, "");
 
     // --- Cases ---
-    if (path === "//cases" && method === "GET") {
+    if (path === "/cases" && method === "GET") {
       return res.json({ success: true, cases });
     }
 
-    if (path === "//cases" && method === "POST") {
+    if (path === "/cases" && method === "POST") {
       const { title, client_name, court_name, status } = req.body || {};
       if (!title || !client_name) return res.status(400).json({ error: "Title and client name are required." });
       const newCase = {
@@ -122,11 +122,11 @@ export default async function handler(req: any, res: any) {
     }
 
     // --- Deadlines ---
-    if (path === "//deadlines" && method === "GET") {
+    if (path === "/deadlines" && method === "GET") {
       return res.json({ success: true, deadlines });
     }
 
-    if (path === "//deadlines" && method === "POST") {
+    if (path === "/deadlines" && method === "POST") {
       const { case_id, case_title, client_name, court_name, description, due_date, input_source, urgency } = req.body || {};
       if (!description || !due_date) return res.status(400).json({ error: "Description and due date are required." });
       let matchedCase = cases.find(c => c.id === case_id);
@@ -182,11 +182,11 @@ export default async function handler(req: any, res: any) {
     }
 
     // --- Documents ---
-    if (path === "//documents" && method === "GET") {
+    if (path === "/documents" && method === "GET") {
       return res.json({ success: true, documents: documentDrafts });
     }
 
-    if (path === "//documents" && method === "POST") {
+    if (path === "/documents" && method === "POST") {
       const { case_id, case_title, document_type, title, content } = req.body || {};
       const newDoc = {
         id: `doc-${Date.now()}`,
@@ -202,7 +202,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // --- Reminder worker simulation ---
-    if (path === "//check-reminders" && method === "POST") {
+    if (path === "/check-reminders" && method === "POST") {
       const { phone, user_name, reminder_timing } = req.body || {};
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -255,7 +255,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // --- Voice-to-Task ---
-    if (path === "//voice-to-task" && method === "POST") {
+    if (path === "/voice-to-task" && method === "POST") {
       try {
         const { audioData, mimeType, textInput } = req.body || {};
         const todayStr = new Date().toISOString().split('T')[0];
@@ -293,7 +293,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // --- Draft Document ---
-    if (path === "//draft-document" && method === "POST") {
+    if (path === "/draft-document" && method === "POST") {
       try {
         const { prompt, document_type, case_title, client_name, court_name } = req.body || {};
         if (!prompt) return res.status(400).json({ error: 'Prompt description is required.' });
